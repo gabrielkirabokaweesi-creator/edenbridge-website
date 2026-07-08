@@ -772,11 +772,15 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@email.com">
+      </div>
+      <div class="form-group">
         <label>Password</label>
         <input type="password" id="loginPw" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkLogin()">
       </div>
       <button class="btn-primary" style="width:100%;margin-top:8px" onclick="checkLogin()">Access Dashboard</button>
-      <div id="loginError" style="color:#dc2626;font-size:0.85rem;margin-top:12px;display:none;">Incorrect password.</div>
+      <div id="loginError" style="color:#dc2626;font-size:0.85rem;margin-top:12px;display:none;">Login failed. Check your email and password.</div>
     </div>
   </div>
 </div>
@@ -918,6 +922,9 @@ import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
   onSnapshot, getDocs, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD7FJZfPNsoZ1-DLvKmq85fiRczLlbim4U",
@@ -931,6 +938,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // Collection references — think of these as "tables"
 const ordersCol   = collection(db, 'orders');
@@ -950,19 +958,35 @@ let currentFilter = 'all';
 // onSnapshot fires once immediately with current data, then again
 // automatically every time anything changes in Firestore — even
 // from another device. That's the cross-device sync.
-onSnapshot(query(ordersCol, orderBy('createdAt', 'asc')), snap => {
-  orders = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
-  renderDashboard();
-});
+// Products are public — everyone needs to see the catalogue.
+// Orders, appointments, and messages are PRIVATE: we only subscribe to
+// them once the owner has signed in, because the security rules will
+// reject those reads for anonymous visitors.
+let adminUnsubs = [];
 
-onSnapshot(query(apptsCol, orderBy('createdAt', 'asc')), snap => {
-  appointments = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
-  renderDashboard();
-});
-
-onSnapshot(query(msgsCol, orderBy('createdAt', 'asc')), snap => {
-  messages = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
-  renderDashboard();
+onAuthStateChanged(auth, user => {
+  if (user) {
+    adminUnsubs = [
+      onSnapshot(query(ordersCol, orderBy('createdAt', 'asc')), snap => {
+        orders = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+        renderDashboard();
+      }),
+      onSnapshot(query(apptsCol, orderBy('createdAt', 'asc')), snap => {
+        appointments = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+        renderDashboard();
+      }),
+      onSnapshot(query(msgsCol, orderBy('createdAt', 'asc')), snap => {
+        messages = snap.docs.map(d => ({ fid: d.id, ...d.data() }));
+        renderDashboard();
+      })
+    ];
+  } else {
+    // Signed out: stop listening and clear private data from memory
+    adminUnsubs.forEach(unsub => unsub());
+    adminUnsubs = [];
+    orders = []; appointments = []; messages = [];
+    renderDashboard();
+  }
 });
 
 onSnapshot(productsCol, snap => {
@@ -1207,27 +1231,34 @@ async function submitContact() {
 }
 
 // ===== 10. DASHBOARD =====
-// NOTE: this password check is temporary. The next phase replaces it
-// with Firebase Authentication so the password no longer lives in
-// the page source.
-const PASS = 'edenbridge2025';
-
+// Real authentication: the owner's credentials live in Firebase Auth,
+// not in this file. Nothing secret ships to the browser anymore.
 function showDashboardLogin() { openModal('loginModal'); }
 
-function checkLogin() {
+async function checkLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPw').value;
-  if (pw === PASS) {
+  if (!email || !pw) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
     closeModal('loginModal');
     document.getElementById('loginPw').value = '';
     document.getElementById('loginError').style.display = 'none';
     showSection('dashboard');
     renderDashboard();
-  } else {
+  } catch (err) {
+    console.error('Login failed:', err.code);
     document.getElementById('loginError').style.display = 'block';
   }
 }
 
-function exitDashboard() { showSection('home'); }
+function exitDashboard() {
+  signOut(auth);
+  showSection('home');
+}
 
 function showDashTab(id, el) {
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
