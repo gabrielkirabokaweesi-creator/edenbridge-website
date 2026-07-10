@@ -333,6 +333,49 @@
   /* APPOINTMENT */
   .appt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+  /* ORDER FORM SECTIONS */
+  .form-section-title {
+    font-family: 'Playfair Display', serif; color: var(--green);
+    font-size: 1.05rem; font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px; margin: 28px 0 18px;
+  }
+  .form-section-title:first-child { margin-top: 0; }
+  .choice-row { display: flex; gap: 10px; }
+  .choice-btn {
+    flex: 1; text-align: center; padding: 12px;
+    border: 1px solid var(--border); border-radius: 2px;
+    background: var(--cream); cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; color: var(--gray);
+    transition: all 0.15s;
+  }
+  .choice-btn.active {
+    border-color: var(--green); background: var(--green);
+    color: var(--white);
+  }
+  .field-hint { font-size: 0.78rem; color: var(--gray); margin: -8px 0 16px; line-height: 1.5; }
+
+  /* PAYMENT OPTIONS */
+  .pay-option {
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+    background: var(--white); transition: all 0.15s; position: relative;
+  }
+  .pay-option:hover:not(.disabled) { border-color: var(--green-light); }
+  .pay-option.selected {
+    border-color: var(--green); background: #F4F9F6;
+    box-shadow: 0 0 0 1px var(--green);
+  }
+  .pay-option.disabled { opacity: 0.55; cursor: not-allowed; }
+  .pay-option-title { font-weight: 600; font-size: 0.92rem; color: var(--charcoal); margin-bottom: 4px; }
+  .pay-option-desc { font-size: 0.8rem; color: var(--gray); line-height: 1.5; }
+  .coming-soon {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--gold-tint); color: #8a6d1f;
+    padding: 2px 8px; border-radius: 2px; margin-left: 8px;
+    font-weight: 700; vertical-align: middle;
+  }
+
   /* SUCCESS MSG */
   .success-msg { background: #DCFCE7; border: 1px solid #86EFAC; color: #166534; padding: 16px 20px; border-radius: 4px; margin-top: 16px; font-size: 0.9rem; display: none; }
   .success-msg.show { display: block; }
@@ -605,37 +648,75 @@
       <button class="modal-close" onclick="closeModal('orderModal')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label>Your Name</label>
-        <input type="text" id="orderName" placeholder="Full name">
-      </div>
+      <div class="form-section-title">1 · Your Details</div>
       <div class="form-row">
         <div class="form-group">
-          <label>Phone Number</label>
-          <input type="text" id="orderPhone" placeholder="+256...">
+          <label>Your Name</label>
+          <input type="text" id="orderName" placeholder="Full name">
         </div>
         <div class="form-group">
-          <label>Order Type</label>
-          <select id="orderType">
-            <option>Retail</option>
-            <option>Wholesale / Bulk</option>
-          </select>
+          <label>Your Phone / WhatsApp</label>
+          <input type="text" id="orderPhone" placeholder="+256... or international">
         </div>
+      </div>
+      <div class="form-group">
+        <label>Who is this order for?</label>
+        <div class="choice-row">
+          <div class="choice-btn active" id="forMyselfBtn" onclick="setOrderFor('myself')">Myself</div>
+          <div class="choice-btn" id="forOtherBtn" onclick="setOrderFor('someone else')">Someone Else</div>
+        </div>
+      </div>
+      <div id="recipientFields" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Recipient's Name</label>
+            <input type="text" id="recipName" placeholder="Who will receive the order">
+          </div>
+          <div class="form-group">
+            <label>Recipient's Phone</label>
+            <input type="text" id="recipPhone" placeholder="+256...">
+          </div>
+        </div>
+        <p class="field-hint">Our delivery team will confirm the recipient's name at handoff.</p>
+      </div>
+
+      <div class="form-section-title">2 · Order & Delivery</div>
+      <div class="form-group">
+        <label>Order Type</label>
+        <select id="orderType">
+          <option>Retail</option>
+          <option>Wholesale / Bulk</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Products & Quantities</label>
         <textarea id="orderItems" placeholder="e.g. Rice x 50kg, Sugar x 20kg..."></textarea>
       </div>
       <div class="form-group">
-        <label>Delivery Address (if needed)</label>
-        <input type="text" id="orderAddress" placeholder="Your location">
+        <label>Delivery Address</label>
+        <input type="text" id="orderAddress" placeholder="Where should we deliver?">
       </div>
       <div class="form-group">
         <label>Additional Notes</label>
         <textarea id="orderNotes" placeholder="Any special requirements..."></textarea>
       </div>
-      <button class="btn-primary" style="width:100%" onclick="submitOrder()">Submit Order</button>
-      <div class="success-msg" id="orderSuccess">✓ Order submitted! We'll confirm within a few hours.</div>
+
+      <div class="form-section-title">3 · Payment</div>
+      <div class="pay-option selected" data-method="Pay on Delivery" onclick="selectPayment(this)">
+        <div class="pay-option-title">🚚 Pay on Delivery</div>
+        <div class="pay-option-desc">Pay with cash or Mobile Money when your order arrives.</div>
+      </div>
+      <div class="pay-option" data-method="Mobile Money" onclick="selectPayment(this)">
+        <div class="pay-option-title">📱 Mobile Money (MTN / Airtel)</div>
+        <div class="pay-option-desc">After we confirm your order, pay our registered merchant line — payment details sent to you on WhatsApp.</div>
+      </div>
+      <div class="pay-option disabled" data-method="Card / International">
+        <div class="pay-option-title">💳 Card / International <span class="coming-soon">Coming Soon</span></div>
+        <div class="pay-option-desc">Visa, Mastercard, Apple Pay — best for orders from outside Uganda.</div>
+      </div>
+
+      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="submitOrder()">Submit Order</button>
+      <div class="success-msg" id="orderSuccess"></div>
     </div>
   </div>
 </div>
@@ -827,7 +908,7 @@
       <table class="orders-table" id="ordersTable">
         <thead>
           <tr>
-            <th>#</th><th>Name</th><th>Phone</th><th>Type</th><th>Items</th><th>Date</th><th>Status</th><th>Action</th>
+            <th>#</th><th>Name</th><th>Phone</th><th>Type</th><th>Items</th><th>Payment</th><th>Date</th><th>Status</th><th>Action</th>
           </tr>
         </thead>
         <tbody id="ordersBody"></tbody>
@@ -1138,25 +1219,69 @@ function checkoutFromCart() {
   openModal('orderModal');
 }
 
+// ===== ORDER FORM STATE =====
+let orderFor = 'myself';
+let selectedPayment = 'Pay on Delivery';
+
+function setOrderFor(who) {
+  orderFor = who;
+  document.getElementById('forMyselfBtn').classList.toggle('active', who === 'myself');
+  document.getElementById('forOtherBtn').classList.toggle('active', who === 'someone else');
+  document.getElementById('recipientFields').style.display = who === 'someone else' ? 'block' : 'none';
+}
+
+function selectPayment(el) {
+  if (el.classList.contains('disabled')) return;
+  document.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPayment = el.dataset.method;
+}
+
 // ===== 9. FORM SUBMISSIONS (now async — they wait for Firestore) =====
 async function submitOrder() {
   const name = document.getElementById('orderName').value.trim();
   const phone = document.getElementById('orderPhone').value.trim();
   const items = document.getElementById('orderItems').value.trim();
-  if (!name || !phone || !items) { alert('Please fill in name, phone, and items.'); return; }
+  const address = document.getElementById('orderAddress').value.trim();
+  const recipName = document.getElementById('recipName').value.trim();
+  const recipPhone = document.getElementById('recipPhone').value.trim();
+
+  if (!name || !phone || !items) { alert('Please fill in your name, phone, and the items you want.'); return; }
+  if (orderFor === 'someone else' && (!recipName || !recipPhone)) {
+    alert("Please fill in the recipient's name and phone so we can deliver correctly.");
+    return;
+  }
+
   try {
     await addDoc(ordersCol, {
       name, phone, items,
       type: document.getElementById('orderType').value,
-      address: document.getElementById('orderAddress').value,
+      address,
       notes: document.getElementById('orderNotes').value,
+      orderFor,
+      recipientName: orderFor === 'someone else' ? recipName : '',
+      recipientPhone: orderFor === 'someone else' ? recipPhone : '',
+      paymentMethod: selectedPayment,
+      paymentStatus: 'unpaid',
       date: new Date().toLocaleDateString(),
       status: 'new',
       createdAt: serverTimestamp()
     });
+
+    // Build a human confirmation summary
+    const deliverTo = orderFor === 'someone else' ? `${recipName} (${recipPhone})` : name;
+    const nextStep = selectedPayment === 'Mobile Money'
+      ? "We'll confirm your order and send Mobile Money payment details to your WhatsApp."
+      : "We'll confirm your order on WhatsApp shortly. Payment is collected on delivery.";
+    document.getElementById('orderSuccess').innerHTML =
+      `✓ <strong>Order received!</strong><br>` +
+      `Items: ${items}<br>` +
+      `Deliver to: ${deliverTo}${address ? ' — ' + address : ''}<br>` +
+      `Payment: ${selectedPayment}<br>` +
+      `${nextStep}`;
     document.getElementById('orderSuccess').classList.add('show');
     cart = []; updateCartUI();
-    setTimeout(() => { closeModal('orderModal'); document.getElementById('orderSuccess').classList.remove('show'); }, 2500);
+    setTimeout(() => { closeModal('orderModal'); document.getElementById('orderSuccess').classList.remove('show'); }, 6000);
   } catch (err) {
     console.error(err);
     alert('Could not submit your order — please check your internet connection and try again.');
@@ -1279,8 +1404,9 @@ function renderDashboard() {
   else {
     document.getElementById('noOrders').style.display = 'none';
     ob.innerHTML = orders.map((o, idx) => `<tr>
-      <td>#${idx + 1}</td><td>${o.name}</td><td>${o.phone}</td><td>${o.type}</td>
-      <td style="max-width:200px;font-size:0.8rem">${o.items}</td><td>${o.date}</td>
+      <td>#${idx + 1}</td><td>${o.name}${o.recipientName ? ' → ' + o.recipientName : ''}</td><td>${o.phone}</td><td>${o.type}</td>
+      <td style="max-width:200px;font-size:0.8rem">${o.items}</td>
+      <td style="font-size:0.8rem">${o.paymentMethod || '—'}</td><td>${o.date}</td>
       <td><span class="status-badge status-${o.status}">${o.status}</span></td>
       <td><select onchange="updateOrderStatus('${o.fid}', this.value)" style="padding:4px 8px;font-size:0.8rem;border:1px solid var(--border);border-radius:2px">
         <option ${o.status === 'new' ? 'selected' : ''}>new</option>
@@ -1387,6 +1513,8 @@ window.addToCart = addToCart;
 window.changeQty = changeQty;
 window.checkoutFromCart = checkoutFromCart;
 window.submitOrder = submitOrder;
+window.setOrderFor = setOrderFor;
+window.selectPayment = selectPayment;
 window.submitDelivery = submitDelivery;
 window.submitAppointment = submitAppointment;
 window.submitContact = submitContact;
