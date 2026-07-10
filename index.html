@@ -312,6 +312,13 @@
     margin-bottom: -1px; transition: all 0.2s;
   }
   .dash-tab.active { color: var(--green); border-bottom-color: var(--green); font-weight: 600; }
+  .tab-badge {
+    display: none; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; background: var(--gold); color: var(--green);
+    font-size: 0.7rem; font-weight: 700; margin-left: 6px;
+    vertical-align: middle;
+  }
   .dash-panel { display: none; }
   .dash-panel.active { display: block; }
   .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 32px; }
@@ -897,9 +904,9 @@
     </div>
 
     <div class="dash-tabs">
-      <div class="dash-tab active" onclick="showDashTab('tabOrders', this)">Orders</div>
-      <div class="dash-tab" onclick="showDashTab('tabAppointments', this)">Appointments</div>
-      <div class="dash-tab" onclick="showDashTab('tabMessages', this)">Messages</div>
+      <div class="dash-tab active" onclick="showDashTab('tabOrders', this)">Orders<span class="tab-badge" id="badgeOrders"></span></div>
+      <div class="dash-tab" onclick="showDashTab('tabAppointments', this)">Appointments<span class="tab-badge" id="badgeAppt"></span></div>
+      <div class="dash-tab" onclick="showDashTab('tabMessages', this)">Messages<span class="tab-badge" id="badgeMsg"></span></div>
       <div class="dash-tab" onclick="showDashTab('tabProducts', this)">Manage Products</div>
     </div>
 
@@ -1390,9 +1397,35 @@ function showDashTab(id, el) {
   document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   el.classList.add('active');
+  if (id === 'tabMessages') markMessagesRead();
+}
+
+// Opening the Messages tab acts like opening an inbox: everything
+// unread gets flagged read in Firestore, and the badge clears itself
+// via the real-time listener.
+async function markMessagesRead() {
+  const unread = messages.filter(m => !m.read);
+  for (const m of unread) {
+    try {
+      await updateDoc(doc(db, 'messages', m.fid), { read: true });
+    } catch (err) {
+      console.error('Could not mark message read:', err);
+    }
+  }
+}
+
+function setBadge(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = n;
+  el.style.display = n > 0 ? 'inline-flex' : 'none';
 }
 
 function renderDashboard() {
+  setBadge('badgeOrders', orders.filter(o => o.status === 'new').length);
+  setBadge('badgeAppt', appointments.filter(a => a.status === 'pending').length);
+  setBadge('badgeMsg', messages.filter(m => !m.read).length);
+
   document.getElementById('statOrders').textContent = orders.length;
   document.getElementById('statNew').textContent = orders.filter(o => o.status === 'new').length;
   document.getElementById('statAppt').textContent = appointments.filter(a => a.status === 'pending').length;
